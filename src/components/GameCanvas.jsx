@@ -89,9 +89,9 @@ const GameCanvas = ({ gameState }) => {
         customOffset = 0; // Exactly at start line
         isStartAsset = true;
       } else {
-        customScale = 1.0 + (Math.random() * 0.8); // Make them bigger
-        customGap = 300 + (Math.random() * 1200); // Random gap
-        customOffset = 500 + Math.random() * 2000; // Pushed forward
+        customScale = 0.8 + (Math.random() * 0.6); // Slightly bigger (0.8x to 1.4x)
+        customGap = 400 + (Math.random() * 1200); // Random gap
+        customOffset = 1200 + Math.random() * 800; // Start right after the first platform
         isStartAsset = false;
       }
       
@@ -101,10 +101,14 @@ const GameCanvas = ({ gameState }) => {
         offscreen.width = img.width;
         offscreen.height = img.height;
         const oCtx = offscreen.getContext('2d');
-        const fogAmount = (8 - index) / 8;
-        const brightness = 75 - (fogAmount * 35);
-        const contrast = 90 - (fogAmount * 30);
-        oCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) grayscale(${fogAmount * 30}%)`;
+        
+        if (!isStartAsset) {
+          const fogAmount = (8 - index) / 8;
+          const brightness = 75 - (fogAmount * 35);
+          const contrast = 90 - (fogAmount * 30);
+          oCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) grayscale(${fogAmount * 30}%)`;
+        }
+        
         oCtx.drawImage(img, 0, 0);
         
         offscreen.customScale = customScale;
@@ -310,14 +314,34 @@ const GameCanvas = ({ gameState }) => {
 
   return (
     <div 
+      onContextMenu={(e) => { e.preventDefault(); return false; }}
       onMouseDown={handleStartCharge}
       onMouseUp={handleReleaseCharge}
       onMouseLeave={handleReleaseCharge}
       onTouchStart={handleStartCharge}
       onTouchEnd={handleReleaseCharge}
-      style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        position: 'relative', 
+        overflow: 'hidden', 
+        cursor: 'pointer',
+        touchAction: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTouchCallout: 'none'
+      }}
     >
-      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+      <canvas 
+        ref={canvasRef} 
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          display: 'block',
+          touchAction: 'none',
+          WebkitTouchCallout: 'none'
+        }} 
+      />
     </div>
   );
 };

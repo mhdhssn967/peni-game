@@ -91,20 +91,21 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
       const parallaxFactor = 0.1 + (index * 0.08); 
       const bgScrollX = state.scrollX * parallaxFactor;
       
-      const baseTargetHeight = img.isStartAsset ? H * 0.55 : H * 0.85;
+      const baseTargetHeight = H * 0.55;
       const targetHeight = baseTargetHeight * (img.customScale || 1.0);
       const scale = targetHeight / img.height;
       const imgW = img.width * scale;
       
       const drawY = img.isStartAsset 
         ? (H - platformHeight) - targetHeight + (platformHeight * 0.4)
-        : H - targetHeight;
+        : H - targetHeight + (targetHeight * 0.15); // Sink 15% off the bottom edge
 
       const gap = img.customGap || 0;
       const period = imgW + gap;
       const offset = img.customOffset || 0;
 
-      const startK = Math.floor((bgScrollX - offset - imgW) / period);
+      // Ensure k is always >= 0 so backgrounds don't loop backwards into the start screen
+      const startK = Math.max(0, Math.floor((bgScrollX - offset - imgW) / period));
       const endK = Math.ceil((bgScrollX + W - offset) / period);
       
       ctx.save();
