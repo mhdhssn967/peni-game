@@ -33,53 +33,53 @@ const GameCanvas = ({ gameState }) => {
     };
 
     const platImg = new Image();
-    platImg.src = '/platform.png';
+    platImg.src = '/platform.webp';
     platImg.onload = () => {
       platformImageRef.current = platImg;
       onImgLoad();
     };
     platImg.onerror = () => {
-      console.warn("Failed to load /platform.png, falling back to procedural textures");
+      console.warn("Failed to load /platform.webp, falling back to procedural textures");
       onImgLoad();
     };
 
     const charJumpImg = new Image();
-    charJumpImg.src = '/peni-jumpp.png';
+    charJumpImg.src = '/peni-jumpp.webp';
     charJumpImg.onload = () => {
       charJumpImageRef.current = charJumpImg;
       onImgLoad();
     };
     charJumpImg.onerror = () => {
-      console.warn("Failed to load /Peni-jump.png");
+      console.warn("Failed to load /peni-jumpp.webp");
       onImgLoad();
     };
 
     const charWaveImg = new Image();
-    charWaveImg.src = '/Peni-wave.png';
+    charWaveImg.src = '/Peni-wave.webp';
     charWaveImg.onload = () => {
       charWaveImageRef.current = charWaveImg;
       onImgLoad();
     };
     charWaveImg.onerror = () => {
-      console.warn("Failed to load /Peni-wave.png");
+      console.warn("Failed to load /Peni-wave.webp");
       onImgLoad();
     };
 
     const charIdleImg = new Image();
-    charIdleImg.src = '/peni-idle.png';
+    charIdleImg.src = '/peni-idle.webp';
     charIdleImg.onload = () => {
       charIdleImageRef.current = charIdleImg;
       onImgLoad();
     };
     charIdleImg.onerror = () => {
-      console.warn("Failed to load /peni-idle.png");
+      console.warn("Failed to load /peni-idle.webp");
       onImgLoad();
     };
 
     const bgs = new Array(9);
     for (let i = 1; i <= 9; i++) {
       const img = new Image();
-      img.src = `/environment/${i}.png`;
+      img.src = `/environment/${i}.webp`;
       const index = i - 1;
       
       let customScale, customGap, customOffset, isStartAsset;
@@ -118,7 +118,7 @@ const GameCanvas = ({ gameState }) => {
         onImgLoad();
       };
       img.onerror = () => {
-        console.warn(`Failed to load /environment/${i}.png`);
+        console.warn(`Failed to load /environment/${i}.webp`);
         onImgLoad();
       };
     }
@@ -239,7 +239,19 @@ const GameCanvas = ({ gameState }) => {
 
   // Draw Loop
   useEffect(() => {
-    const loop = () => {
+    let lastTime = performance.now();
+    let accumulator = 0;
+    const TIME_STEP = 1000 / 120; // Lock physics to 120 FPS mathematically for fast gameplay
+
+    const loop = (time) => {
+      let deltaTime = time - lastTime;
+      lastTime = time;
+      
+      // Prevent "spiral of death" or huge teleportation if tab is backgrounded
+      if (deltaTime > 100) deltaTime = 100;
+      
+      accumulator += deltaTime;
+
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
@@ -249,7 +261,11 @@ const GameCanvas = ({ gameState }) => {
       const platformHeight = canvas.height * 0.40; // 40% of the screen height
       const platformWidth = platImg ? (platImg.width * (platformHeight / platImg.height)) : canvas.width;
 
-      updatePhysics(state, canvas, gameState, platformWidth, platformHeight, playJumpSound);
+      // Catch up on physics steps if the device screen is running at a lower refresh rate (e.g. 30Hz mobile screens)
+      while (accumulator >= TIME_STEP) {
+        updatePhysics(state, canvas, gameState, platformWidth, platformHeight, playJumpSound);
+        accumulator -= TIME_STEP;
+      }
 
       const refs = {
         platformImageRef, charJumpImageRef, charWaveImageRef, charIdleImageRef, bgImagesRef, iceCandiesImagesRef
