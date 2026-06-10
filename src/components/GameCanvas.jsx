@@ -76,27 +76,51 @@ const GameCanvas = ({ gameState }) => {
       onImgLoad();
     };
 
-    const bgs = [];
+    const bgs = new Array(9);
     for (let i = 1; i <= 9; i++) {
       const img = new Image();
       img.src = `/environment/${i}.png`;
+      const index = i - 1;
+      
+      let customScale, customGap, customOffset, isStartAsset;
       if (i === 8) {
-        img.customScale = 0.9; // Always bigger and same size
-        img.customGap = 9999999; // Never repeat, only at the beginning
-        img.customOffset = 0; // Exactly at start line
-        img.isStartAsset = true;
+        customScale = 0.9; // Always bigger and same size
+        customGap = 9999999; // Never repeat, only at the beginning
+        customOffset = 0; // Exactly at start line
+        isStartAsset = true;
       } else {
-        img.customScale = 1.0 + (Math.random() * 0.8); // Make them bigger
-        img.customGap = 300 + (Math.random() * 1200); // Random gap
-        img.customOffset = 500 + Math.random() * 2000; // Pushed forward
-        img.isStartAsset = false;
+        customScale = 1.0 + (Math.random() * 0.8); // Make them bigger
+        customGap = 300 + (Math.random() * 1200); // Random gap
+        customOffset = 500 + Math.random() * 2000; // Pushed forward
+        isStartAsset = false;
       }
-      img.onload = () => onImgLoad();
+      
+      img.onload = () => {
+        // Pre-render filter for massive mobile performance boost
+        const offscreen = document.createElement('canvas');
+        offscreen.width = img.width;
+        offscreen.height = img.height;
+        const oCtx = offscreen.getContext('2d');
+        const fogAmount = (8 - index) / 8;
+        const brightness = 75 - (fogAmount * 35);
+        const contrast = 90 - (fogAmount * 30);
+        oCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) grayscale(${fogAmount * 30}%)`;
+        oCtx.drawImage(img, 0, 0);
+        
+        offscreen.customScale = customScale;
+        offscreen.customGap = customGap;
+        offscreen.customOffset = customOffset;
+        offscreen.isStartAsset = isStartAsset;
+        offscreen.complete = true;
+        offscreen.naturalHeight = img.height;
+        
+        bgs[index] = offscreen;
+        onImgLoad();
+      };
       img.onerror = () => {
         console.warn(`Failed to load /environment/${i}.png`);
         onImgLoad();
       };
-      bgs.push(img);
     }
     bgImagesRef.current = bgs;
   }, []);

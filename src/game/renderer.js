@@ -108,10 +108,6 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
       const endK = Math.ceil((bgScrollX + W - offset) / period);
       
       ctx.save();
-      const fogAmount = (8 - index) / 8;
-      const brightness = 75 - (fogAmount * 35); // 75% closest, down to 40% furthest
-      const contrast = 90 - (fogAmount * 30);
-      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) grayscale(${fogAmount * 30}%)`;
       
       for (let k = startK; k <= endK; k++) {
         const screenX = offset + (k * period) - bgScrollX;
@@ -127,8 +123,6 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
   const L_plat = platformWidth;
 
   ctx.save();
-  ctx.shadowBlur = 12;
-  ctx.shadowColor = 'rgba(0, 40, 15, 0.4)';
 
   const x1 = -state.scrollX;
 
@@ -165,8 +159,6 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
     ctx.beginPath();
     ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(0, 150, 255, ${dot.opacity})`;
-    ctx.shadowBlur = 6;
-    ctx.shadowColor = `rgba(0, 150, 255, ${dot.opacity})`;
     ctx.fill();
   });
   ctx.restore();
@@ -223,8 +215,6 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
       ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.lineWidth = 2;
-      ctx.shadowBlur = 4;
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
       
       ctx.beginPath();
       ctx.roundRect(meterX, meterY, meterWidth, meterHeight, 4);
@@ -239,8 +229,6 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
         grad.addColorStop(1, '#ff3366');
         
         ctx.fillStyle = grad;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = '#00ffcc';
         
         ctx.beginPath();
         ctx.roundRect(
@@ -325,12 +313,9 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
     }
 
     ctx.fillStyle = `rgba(224, 255, 178, ${p.opacity})`;
-    ctx.shadowBlur = 6;
-    ctx.shadowColor = '#d2ff8a';
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
   });
 
   ctx.restore();
