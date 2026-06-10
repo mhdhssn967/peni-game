@@ -96,20 +96,19 @@ const GameCanvas = ({ gameState }) => {
       }
       
       img.onload = () => {
-        // Pre-render filter for massive mobile performance boost
         const offscreen = document.createElement('canvas');
         offscreen.width = img.width;
         offscreen.height = img.height;
         const oCtx = offscreen.getContext('2d');
         
-        if (!isStartAsset) {
-          const fogAmount = (8 - index) / 8;
-          const brightness = 75 - (fogAmount * 35);
-          const contrast = 90 - (fogAmount * 30);
-          oCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) grayscale(${fogAmount * 30}%)`;
-        }
-        
         oCtx.drawImage(img, 0, 0);
+
+        if (!isStartAsset) {
+          oCtx.globalCompositeOperation = 'source-atop';
+          oCtx.fillStyle = 'rgba(197, 233, 252, 0.45)'; // Light ice-blue mist
+          oCtx.fillRect(0, 0, img.width, img.height);
+          oCtx.globalCompositeOperation = 'source-over'; // Reset
+        }
         
         offscreen.customScale = customScale;
         offscreen.customGap = customGap;

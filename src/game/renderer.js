@@ -91,7 +91,7 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
   const bgImages = bgImagesRef.current;
   if (bgImages && bgImages.length === 9) {
     bgImages.forEach((img, index) => {
-      if (!img.complete || img.naturalHeight === 0) return;
+      if (!img || img.width === 0) return;
       
       const parallaxFactor = 0.1 + (index * 0.08); 
       const bgScrollX = state.scrollX * parallaxFactor;
@@ -324,6 +324,86 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
     ctx.fill();
   });
 
-  ctx.restore(); // Restore camera translation
+  // 8. FLOATING TEXTS (Moves with camera)
+  if (state.floatingTexts) {
+    state.floatingTexts.forEach(ft => {
+      const fontSize = ft.isBig ? 52 : 28;
+      ctx.font = `${fontSize}px "Luckiest Guy", cursive, sans-serif`;
+      ctx.textAlign = 'center';
+      
+      const screenX = ft.x - state.scrollX;
+      
+      // Shadow
+      ctx.fillStyle = `rgba(0, 0, 0, ${ft.opacity * 0.5})`;
+      ctx.fillText(ft.text, screenX + (ft.isBig ? 4 : 3), ft.y + (ft.isBig ? 4 : 3));
+      
+      // Text (White)
+      ctx.fillStyle = `rgba(255, 255, 255, ${ft.opacity})`;
+      ctx.fillText(ft.text, screenX, ft.y);
+      
+      if (ft.isBig) {
+        // Outline to make the +5 pop more
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = `rgba(253, 92, 34, ${ft.opacity})`; // Peni Orange outline
+        ctx.strokeText(ft.text, screenX, ft.y);
+      }
+    });
+  }
+
+  ctx.restore(); // Restore camera translation (Everything below is fixed to screen)
+
+  // 9. SCORE HUD (Fixed UI)
+  const scoreNumText = `${state.score || 0}`;
+  ctx.font = '28px "Luckiest Guy", cursive, sans-serif';
+  const textWidth = ctx.measureText(scoreNumText).width;
+  
+  // Icon dimensions
+  const iconW = 18;
+  const iconH = 34; 
+  const gap = 12;
+  
+  const paddingX = 16;
+  const boxWidth = paddingX * 2 + iconW + gap + textWidth;
+  const boxHeight = 46;
+  const boxX = 20;
+  const boxY = 20;
+
+  // Draw Blue Rounded Box
+  ctx.fillStyle = 'rgba(31, 165, 227, 0.9)'; // Peni Brand Sky Blue
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 12);
+  ctx.fill();
+  ctx.stroke();
+
+  // Draw Candy Icon
+  const candyCanvas = iceCandiesImagesRef.current && iceCandiesImagesRef.current.pink;
+  if (candyCanvas) {
+     ctx.save();
+     // Translate to the center of the icon's intended position
+     ctx.translate(boxX + paddingX + iconW / 2, boxY + boxHeight / 2);
+     // Rotate slightly (15 degrees)
+     ctx.rotate(15 * Math.PI / 180);
+     ctx.drawImage(candyCanvas, -iconW / 2, -iconH / 2, iconW, iconH);
+     ctx.restore();
+  }
+
+  // Draw Text
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  // Subtle drop shadow for text
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText(scoreNumText, boxX + paddingX + iconW + gap, boxY + boxHeight / 2 + 2);
+  
+  // Reset shadow and baseline
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.textBaseline = 'alphabetic';
+
   ctx.restore(); // Restore DPI scale
 };

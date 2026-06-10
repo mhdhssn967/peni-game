@@ -42,7 +42,55 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
   }
 
   if (state.isCharging) {
-    state.chargeValue = Math.min(1.0, state.chargeValue + 0.01);
+    // Initialize direction if not present (1 for increasing, -1 for decreasing)
+    if (!state.chargeDirection) state.chargeDirection = 1;
+    if (state.chargeHoldTimer === undefined) state.chargeHoldTimer = 0;
+    
+    if (state.chargeHoldTimer > 0) {
+      state.chargeHoldTimer--;
+    } else {
+      state.chargeValue += 0.008 * state.chargeDirection; 
+      
+      // Ping-pong the charge value between 0 and 1
+      if (state.chargeValue >= 1.0) {
+        state.chargeValue = 1.0;
+        state.chargeDirection = -1;
+        state.chargeHoldTimer = 60; // 60 frames at 120fps = 0.5 seconds pause at max power
+      } else if (state.chargeValue <= 0.0) {
+        state.chargeValue = 0.0;
+        state.chargeDirection = 1;
+      }
+    }
+  } else {
+    // Reset direction and timer when not charging
+    state.chargeDirection = 1;
+    state.chargeHoldTimer = 0;
+  }
+
+  if (state.floatingTexts) {
+    for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = state.floatingTexts[i];
+      ft.y -= ft.isBig ? 2.5 : 1.5; // Big numbers float faster
+      ft.life -= 1;
+      ft.opacity = Math.max(0, ft.life / 60);
+      if (ft.life <= 0) {
+        state.floatingTexts.splice(i, 1);
+      }
+    }
+  }
+
+  const peniWorldX = state.scrollX + (logicalWidth * 0.12) + (130 / 2);
+
+  // Check for jumped-over (skipped) candies
+  if (state.candies) {
+    for (let i = 0; i < state.candies.length; i++) {
+      const candy = state.candies[i];
+      if (peniWorldX > candy.x + 135 && !candy.hasScored && !candy.passed) {
+        candy.passed = true;
+        candy.hasScored = true;
+        state.skippedCandiesThisJump = (state.skippedCandiesThisJump || 0) + 1;
+      }
+    }
   }
 
   if (state.isJumping) {
@@ -84,7 +132,7 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
           }
 
           const randomType = types[Math.floor(Math.random() * types.length)];
-          state.candies.push({ x: startCandyX, type: randomType, yOffset });
+          state.candies.push({ x: startCandyX, type: randomType, yOffset, hasScored: false, passed: false });
           startCandyX += 140 + gap; 
       }
     }
@@ -92,12 +140,14 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
     const isOnPlatform1 = peniWorldX >= 0 && peniWorldX <= L_plat;
     let isOnCandy = false;
     let activeCandyYOffset = 0;
+    let activeCandy = null;
     
     for (let i = 0; i < state.candies.length; i++) {
       const candy = state.candies[i];
       if (peniWorldX >= candy.x + 5 && peniWorldX <= candy.x + 135) {
         isOnCandy = true;
         activeCandyYOffset = candy.yOffset;
+        activeCandy = candy;
         break;
       }
     }
@@ -118,6 +168,26 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
           state.currentAudio.currentTime = 0;
           state.currentAudio = null;
         }
+        
+        if (isOnCandy && activeCandy && !activeCandy.hasScored) {
+          activeCandy.hasScored = true;
+          
+          const skipped = state.skippedCandiesThisJump || 0;
+          const jumpPoints = skipped > 0 ? (skipped * 5) : 1;
+          
+          state.score = (state.score || 0) + jumpPoints;
+          state.floatingTexts = state.floatingTexts || [];
+          state.floatingTexts.push({
+            x: activeCandy.x + 70, // center of candy
+            y: targetGroundY - 40,
+            text: `+${jumpPoints}`,
+            opacity: 1.0,
+            life: 60,
+            isBig: jumpPoints > 1
+          });
+          
+          state.skippedCandiesThisJump = 0; // reset for next jump
+        }
       } else if (!isOnPlatform) {
         if (state.charY > logicalHeight + 150) {
           state.scrollX = 0;
@@ -126,6 +196,8 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
           state.isJumping = false;
           state.fallFrameIndex = 18;
           state.fallFrameTimer = 0;
+          state.score = 0; // Reset score on death
+          state.skippedCandiesThisJump = 0;
           state.candies = []; // Regenerate candies on respawn
           if (state.currentAudio) {
             state.currentAudio.pause();
