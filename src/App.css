@@ -1,0 +1,392 @@
+/* Peni Ice Candy Brand styles */
+
+@import url('https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Rajdhani:wght@600;700&display=swap');
+
+:root {
+  --color-brand-blue: #1fa5e3;       /* Logo sky blue background */
+  --color-brand-orange: #fd5c22;     /* Logo melt orange rays/drip */
+  --color-brand-ice: #8fcef2;        /* Logo light popsicle body */
+  --color-brand-white: #ffffff;
+  
+  --font-game: 'Luckiest Guy', cursive, sans-serif;
+  --font-hud: 'Rajdhani', sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #0c1c28;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Outer layout container */
+.game-app {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  background-color: #081622;
+}
+
+/* Background blur gradient overlay for desktop screen margins */
+.background-glow {
+  position: absolute;
+  top: -20%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  background: 
+    radial-gradient(circle at 80% 20%, rgba(31, 165, 227, 0.22) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(253, 92, 34, 0.12) 0%, transparent 50%),
+    #0a1622;
+  filter: blur(80px);
+  z-index: 1;
+}
+
+/* Simulated High-End Mobile Phone Frame Mockup (Desktop only) */
+.phone-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 440px;
+  max-height: 880px;
+  background-color: #0b141e;
+  border: 14px solid #1a2736;
+  border-radius: 46px;
+  box-shadow: 
+    0 25px 55px rgba(0, 0, 0, 0.75),
+    0 0 50px rgba(31, 165, 227, 0.15),
+    inset 0 0 10px rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  transform: scale(0.95);
+  transition: transform 0.3s;
+}
+
+/* Phone Bezel Detailing (Buttons/Speaker) */
+.phone-speaker {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 4px;
+  background-color: #0b141e;
+  border-radius: 2px;
+  z-index: 30;
+}
+
+.phone-volume-btn {
+  position: absolute;
+  left: -18px;
+  width: 4px;
+  height: 45px;
+  background-color: #1a2736;
+  border-radius: 4px 0 0 4px;
+}
+.phone-volume-btn.up { top: 140px; }
+.phone-volume-btn.down { top: 195px; }
+
+.phone-power-btn {
+  position: absolute;
+  right: -18px;
+  top: 170px;
+  width: 4px;
+  height: 60px;
+  background-color: #1a2736;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Game canvas phone screen */
+.phone-screen {
+  position: relative;
+  flex-grow: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #020b12;
+}
+
+/* Game HUD Overlays */
+.game-overlay-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px 20px 40px; /* Adjusted padding as status bar is removed */
+  box-sizing: border-box;
+}
+
+.pointer-events-auto {
+  pointer-events: auto !important;
+}
+
+/* Row of controls */
+.hud-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  pointer-events: none;
+}
+
+.hud-row.top {
+  margin-bottom: auto;
+}
+
+/* Glassmorphic HUD Badges in Peni Sky Blue */
+.badge {
+  background: rgba(12, 33, 49, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(143, 206, 242, 0.25);
+  border-radius: 12px;
+  padding: 8px 14px;
+  color: #ffffff;
+  font-family: var(--font-hud);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+.level-badge {
+  color: var(--color-brand-ice);
+  border-color: rgba(143, 206, 242, 0.35);
+}
+
+.score-badge {
+  color: var(--color-brand-orange);
+  border-color: rgba(253, 92, 34, 0.35);
+}
+
+.score-val {
+  font-size: 0.95rem;
+  color: #ffffff;
+}
+
+/* Floating mute button */
+.hud-mute-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: all 0.2s;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.hud-mute-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: scale(1.05);
+}
+
+.hud-mute-btn:active {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(0.92);
+}
+
+/* Stamina Bar with Melt Orange indicator */
+.energy-container {
+  width: 100%;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.energy-label {
+  font-family: var(--font-hud);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.energy-bar-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.energy-bar-fill {
+  width: 75%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-brand-ice), var(--color-brand-orange));
+  box-shadow: 0 0 10px rgba(253, 92, 34, 0.4);
+}
+
+/* Center Logo Panel */
+.game-intro-panel {
+  text-align: center;
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+
+.jungle-accent {
+  font-family: var(--font-hud);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--color-brand-orange);
+  text-shadow: 0 0 10px rgba(253, 92, 34, 0.3);
+  margin-bottom: 5px;
+}
+
+.game-main-title {
+  font-family: var(--font-game);
+  font-size: 5.5rem;
+  margin: 0;
+  line-height: 0.85;
+  background: linear-gradient(185deg, var(--color-brand-white) 50%, var(--color-brand-ice) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 0px rgba(20, 80, 120, 0.5)) drop-shadow(0 8px 15px rgba(0,0,0,0.5));
+}
+
+.game-sub-title {
+  font-family: var(--font-game);
+  font-size: 1.15rem;
+  letter-spacing: 2px;
+  color: var(--color-brand-ice);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  margin-top: 10px;
+}
+
+/* Play Button using Peni Melt Orange */
+.main-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 44px;
+  margin-top: 30px;
+  background: linear-gradient(135deg, var(--color-brand-orange) 0%, #ff6e34 100%);
+  border: 2.5px solid var(--color-brand-white);
+  border-radius: 20px;
+  color: #ffffff;
+  font-family: var(--font-game);
+  font-size: 1.7rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  box-shadow: 
+    0 10px 25px rgba(253, 92, 34, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.main-play-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 
+    0 15px 35px rgba(253, 92, 34, 0.55),
+    0 0 15px rgba(255, 255, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.main-play-btn:active {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: 0 5px 15px rgba(253, 92, 34, 0.25);
+}
+
+.play-icon {
+  fill: #fff;
+}
+
+/* Footer / Press notification */
+.game-footer-panel {
+  margin-top: auto;
+  text-align: center;
+}
+
+.tap-indicator {
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 2.5px;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255,255,255,0.4);
+  animation: pulse-glow 1.5s infinite alternate;
+  margin-bottom: 25px;
+}
+
+.active-runner-label {
+  font-family: var(--font-hud);
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: 2.5px;
+  color: var(--color-brand-orange);
+  text-shadow: 0 0 10px rgba(253, 92, 34, 0.4);
+  margin-bottom: 25px;
+}
+
+.game-settings-notice {
+  font-family: var(--font-hud);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Animation utilities */
+@keyframes pulse-glow {
+  0% { opacity: 0.3; transform: scale(0.98); }
+  100% { opacity: 0.95; transform: scale(1.02); }
+}
+
+.spin-icon {
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* RESPONSIVENESS: Mobile / Tablet adaptation */
+@media (max-width: 480px) {
+  .phone-wrapper {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border: none;
+    border-radius: 0;
+    transform: scale(1.0);
+  }
+
+  .game-overlay-hud {
+    padding-top: 30px;
+  }
+}
