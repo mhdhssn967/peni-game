@@ -6,8 +6,11 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
   const driftSpeed = 0.4;
   const speedMultiplier = isPlaying ? runSpeed : driftSpeed;
 
+  const logicalWidth = canvas.logicalWidth || canvas.width;
+  const logicalHeight = canvas.logicalHeight || canvas.height;
+
   const charHeight = 130;
-  const platTopVisible = canvas.height - platformHeight + (platformHeight * 65 / 582);
+  const platTopVisible = logicalHeight - platformHeight + (platformHeight * 65 / 582);
   const charGroundY = platTopVisible - charHeight + (charHeight * 57 / 256);
 
   let currentScrollSpeed = 0;
@@ -21,7 +24,7 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
 
     if (state.time % 3 === 0) {
       state.jumpTrail.push({
-        x: canvas.width * 0.12 + 130 / 2,
+        x: logicalWidth * 0.12 + 130 / 2,
         y: state.charY + 130 / 2 + 20,
         opacity: 0.8,
         size: 4 + Math.random() * 3
@@ -64,7 +67,7 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
       state.fallFrameTimer = 0;
     }
 
-    const peniWorldX = state.scrollX + (canvas.width * 0.12) + (130 / 2);
+    const peniWorldX = state.scrollX + (logicalWidth * 0.12) + (130 / 2);
     const L_plat = platformWidth;
 
     if (state.candies.length === 0) {
@@ -116,7 +119,7 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
           state.currentAudio = null;
         }
       } else if (!isOnPlatform) {
-        if (state.charY > canvas.height + 150) {
+        if (state.charY > logicalHeight + 150) {
           state.scrollX = 0;
           state.charY = charGroundY;
           state.velocityY = 0;
@@ -134,7 +137,7 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
     }
   } else {
     // Determine target ground even when not jumping to stay snapped correctly
-    const peniWorldX = state.scrollX + (canvas.width * 0.12) + (130 / 2);
+    const peniWorldX = state.scrollX + (logicalWidth * 0.12) + (130 / 2);
     let activeCandyYOffset = 0;
     let isOnCandy = false;
     for (let i = 0; i < state.candies.length; i++) {

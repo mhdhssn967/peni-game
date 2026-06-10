@@ -191,8 +191,12 @@ const GameCanvas = ({ gameState }) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.parentNode.getBoundingClientRect();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      canvas.logicalWidth = rect.width;
+      canvas.logicalHeight = rect.height;
+      canvas.dpr = dpr;
     };
 
     handleResize();
@@ -262,8 +266,10 @@ const GameCanvas = ({ gameState }) => {
       const state = stateRef.current;
 
       const platImg = platformImageRef.current;
-      const platformHeight = canvas.height * 0.40; // 40% of the screen height
-      const platformWidth = platImg ? (platImg.width * (platformHeight / platImg.height)) : canvas.width;
+      const logicalWidth = canvas.logicalWidth || canvas.width;
+      const logicalHeight = canvas.logicalHeight || canvas.height;
+      const platformHeight = logicalHeight * 0.40; // 40% of the screen height
+      const platformWidth = platImg ? (platImg.width * (platformHeight / platImg.height)) : logicalWidth;
 
       // Catch up on physics steps if the device screen is running at a lower refresh rate (e.g. 30Hz mobile screens)
       while (accumulator >= TIME_STEP) {

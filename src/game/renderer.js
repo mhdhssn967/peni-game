@@ -1,7 +1,12 @@
 export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, gameState, refs) => {
   const { platformImageRef, charJumpImageRef, charWaveImageRef, charIdleImageRef, bgImagesRef, iceCandiesImagesRef } = refs;
-  const W = canvas.width;
-  const H = canvas.height;
+  
+  const dpr = canvas.dpr || 1;
+  const W = canvas.logicalWidth || canvas.width;
+  const H = canvas.logicalHeight || canvas.height;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
 
   const charWidth = 130;
   const charHeight = 130;
@@ -319,5 +324,6 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
     ctx.fill();
   });
 
-  ctx.restore();
+  ctx.restore(); // Restore camera translation
+  ctx.restore(); // Restore DPI scale
 };
