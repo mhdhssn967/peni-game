@@ -81,11 +81,18 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
 
   const peniWorldX = state.scrollX + (logicalWidth * 0.12) + (130 / 2);
 
-  // Check for jumped-over (skipped) candies
+  // Check for jumped-over (skipped) candies and animate moving platforms
   if (state.candies) {
     for (let i = 0; i < state.candies.length; i++) {
       const candy = state.candies[i];
-      if (peniWorldX > candy.x + 135 && !candy.hasScored && !candy.passed) {
+      
+      // Animate moving platforms
+      if (candy.isMoving) {
+        candy.movePhase += candy.moveSpeed * 0.02;
+        candy.yOffset = candy.baseYOffset + Math.sin(candy.movePhase) * candy.moveRange;
+      }
+      
+      if (peniWorldX > candy.x + 115 && !candy.hasScored && !candy.passed) {
         candy.passed = true;
         candy.hasScored = true;
         state.skippedCandiesThisJump = (state.skippedCandiesThisJump || 0) + 1;
@@ -122,17 +129,42 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
       let startCandyX = L_plat + 50; 
       const types = ['pink', 'green', 'chocolate', 'orange', 'blue'];
       for(let i=0; i<100; i++) {
-          // Progressive difficulty: first 3 candies are flat and close to help the player learn
+          // Progressive difficulty: first 5 candies are a 2px gap safe runway
           let yOffset = 0;
-          let gap = 40;
+          let gap = 2;
+          let isMoving = false;
+          let moveSpeed = 0;
+          let moveRange = 0;
           
-          if (i > 2) {
-            yOffset = (Math.random() - 0.5) * 80; // Gentle height variation (-40 to +40)
-            gap = 30 + Math.random() * 60; // Random jumpable distance (30 to 90)
+          if (i > 4) {
+            // Increased difficulty: wider gaps and steeper heights
+            const difficultyScale = Math.min(2.0, 1 + (i - 5) * 0.03); 
+            yOffset = (Math.random() - 0.5) * 160 * difficultyScale; 
+            gap = 50 + Math.random() * 120 * difficultyScale; 
+          }
+          
+          if (i > 9) {
+            // After candy 10, make random alternate candies move up and down!
+            if (Math.random() > 0.5) {
+              isMoving = true;
+              moveSpeed = 1.0 + Math.random() * 2.0; // speed of oscillation
+              moveRange = 50 + Math.random() * 80; // pixels to move up and down
+            }
           }
 
           const randomType = types[Math.floor(Math.random() * types.length)];
-          state.candies.push({ x: startCandyX, type: randomType, yOffset, hasScored: false, passed: false });
+          state.candies.push({ 
+            x: startCandyX, 
+            type: randomType, 
+            yOffset, 
+            baseYOffset: yOffset,
+            hasScored: false, 
+            passed: false,
+            isMoving,
+            moveSpeed,
+            moveRange,
+            movePhase: Math.random() * Math.PI * 2
+          });
           startCandyX += 140 + gap; 
       }
     }
@@ -144,7 +176,7 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
     
     for (let i = 0; i < state.candies.length; i++) {
       const candy = state.candies[i];
-      if (peniWorldX >= candy.x + 5 && peniWorldX <= candy.x + 135) {
+      if (peniWorldX >= candy.x + 25 && peniWorldX <= candy.x + 115) {
         isOnCandy = true;
         activeCandyYOffset = candy.yOffset;
         activeCandy = candy;
@@ -214,7 +246,7 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
     let isOnCandy = false;
     for (let i = 0; i < state.candies.length; i++) {
       const candy = state.candies[i];
-      if (peniWorldX >= candy.x + 5 && peniWorldX <= candy.x + 135) {
+      if (peniWorldX >= candy.x + 25 && peniWorldX <= candy.x + 115) {
         isOnCandy = true;
         activeCandyYOffset = candy.yOffset;
         break;
