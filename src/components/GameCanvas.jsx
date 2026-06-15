@@ -181,19 +181,20 @@ const GameCanvas = ({ gameState }) => {
     candies: [] // will be populated in draw loop when sizes are known
   });
 
-  const playJumpSound = (chargeValue) => {
+  const playJumpSound = () => {
     const state = stateRef.current;
     if (state.currentAudio) {
       state.currentAudio.pause();
       state.currentAudio.currentTime = 0;
     }
-    let soundFile = '';
-    if (chargeValue >= 0.95) {
-      soundFile = '/sounds/weelong.mp3';
-    } else {
-      const rand = Math.floor(Math.random() * 4) + 1;
-      soundFile = `/sounds/wee${rand}.mp3`;
-    }
+    const sounds = [
+      '/sounds/wee1.mp3',
+      '/sounds/wee2.mp3',
+      '/sounds/wee3.mp3',
+      '/sounds/wee4.mp3',
+      '/sounds/weelong.mp3'
+    ];
+    const soundFile = sounds[Math.floor(Math.random() * sounds.length)];
     const audio = new Audio(soundFile);
     state.currentAudio = audio;
     audio.play().catch(e => console.warn("Audio play failed:", e));
@@ -233,7 +234,7 @@ const GameCanvas = ({ gameState }) => {
           state.hasJumped = true;
           state.hasStartedMoving = true;
           state.hasDoubleJumped = false;
-          playJumpSound(1.0);
+          playJumpSound();
           state.velocityY = -8.5;
           state.velocityX = 0;
           state.landingTimer = 0;
@@ -242,7 +243,7 @@ const GameCanvas = ({ gameState }) => {
         } else if (!state.hasDoubleJumped) {
           // Double jump mid-air
           state.hasDoubleJumped = true;
-          playJumpSound(0.5);
+          playJumpSound();
           state.velocityY = -7.0;
           state.fallFrameIndex = 18;
           state.fallFrameTimer = 0;
@@ -328,7 +329,7 @@ const GameCanvas = ({ gameState }) => {
             state.hasJumped = true;
             state.hasStartedMoving = true;
             state.hasDoubleJumped = false;
-            playJumpSound(1.0);
+            playJumpSound();
             state.velocityY = -8.5;
             state.velocityX = 0;
             state.landingTimer = 0;
@@ -336,7 +337,7 @@ const GameCanvas = ({ gameState }) => {
             state.fallFrameTimer = 0;
           } else if (!state.hasDoubleJumped) {
             state.hasDoubleJumped = true;
-            playJumpSound(0.5);
+            playJumpSound();
             state.velocityY = -7.0;
             state.fallFrameIndex = 18;
             state.fallFrameTimer = 0;
@@ -357,7 +358,7 @@ const GameCanvas = ({ gameState }) => {
         state.hasJumped = true;
         state.hasStartedMoving = true;
         state.hasDoubleJumped = false;
-        playJumpSound(1.0);
+        playJumpSound();
         state.velocityY = -8.5;
         state.velocityX = 0;
         state.landingTimer = 0;
@@ -365,7 +366,7 @@ const GameCanvas = ({ gameState }) => {
         state.fallFrameTimer = 0;
       } else if (!state.hasDoubleJumped) {
         state.hasDoubleJumped = true;
-        playJumpSound(0.5);
+        playJumpSound();
         state.velocityY = -7.0;
         state.fallFrameIndex = 18;
         state.fallFrameTimer = 0;
