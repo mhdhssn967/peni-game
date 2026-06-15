@@ -10,6 +10,7 @@ const GameCanvas = ({ gameState }) => {
   const charJumpImageRef = useRef(null);
   const charWaveImageRef = useRef(null);
   const charIdleImageRef = useRef(null);
+  const charRunImageRef = useRef(null);
   const bgImagesRef = useRef([]);
   const iceCandiesImagesRef = useRef({});
 
@@ -24,7 +25,7 @@ const GameCanvas = ({ gameState }) => {
     };
 
     let loadedCount = 0;
-    const totalCount = 13;
+    const totalCount = 14;
     const onImgLoad = () => {
       loadedCount++;
       if (loadedCount === totalCount) {
@@ -73,6 +74,17 @@ const GameCanvas = ({ gameState }) => {
     };
     charIdleImg.onerror = () => {
       console.warn("Failed to load /peni-idle.webp");
+      onImgLoad();
+    };
+
+    const charRunImg = new Image();
+    charRunImg.src = '/peni-run.webp';
+    charRunImg.onload = () => {
+      charRunImageRef.current = charRunImg;
+      onImgLoad();
+    };
+    charRunImg.onerror = () => {
+      console.warn("Failed to load /peni-run.webp");
       onImgLoad();
     };
 
@@ -161,6 +173,9 @@ const GameCanvas = ({ gameState }) => {
     runFrameIndex: 0,
     isCharging: false,
     chargeValue: 0,
+    isMovingForward: false,
+    hasStartedMoving: false,
+    hasDoubleJumped: false,
     fallFrameIndex: 18,
     fallFrameTimer: 0,
     candies: [] // will be populated in draw loop when sizes are known
@@ -203,36 +218,42 @@ const GameCanvas = ({ gameState }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Handle Keyboard Jump inputs (Space, ArrowUp)
+  // Handle Keyboard Jump inputs (Space, ArrowUp, ArrowRight)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
+      const state = stateRef.current;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        state.isMovingForward = true;
+      }
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
         e.preventDefault();
-        const state = stateRef.current;
-        if (!state.isJumping && !state.isCharging) {
-          state.isCharging = true;
-          state.chargeValue = 0;
+        if (!state.isJumping) {
+          // First jump
+          state.isJumping = true;
+          state.hasJumped = true;
+          state.hasStartedMoving = true;
+          state.hasDoubleJumped = false;
+          playJumpSound(1.0);
+          state.velocityY = -8.5;
+          state.velocityX = 0;
+          state.landingTimer = 0;
+          state.fallFrameIndex = 18;
+          state.fallFrameTimer = 0;
+        } else if (!state.hasDoubleJumped) {
+          // Double jump mid-air
+          state.hasDoubleJumped = true;
+          playJumpSound(0.5);
+          state.velocityY = -7.0;
+          state.fallFrameIndex = 18;
+          state.fallFrameTimer = 0;
         }
       }
     };
 
     const handleKeyUp = (e) => {
-      if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        const state = stateRef.current;
-        if (state.isCharging) {
-          state.isJumping = true;
-          state.hasJumped = true;
-          state.isCharging = false;
-          playJumpSound(state.chargeValue);
-          // Jump velocity is proportional to charge (range: -3.5 to -9.0 for slower parabolic trajectory)
-          state.velocityY = -3.5 - (5.5 * state.chargeValue);
-          // Horizontal velocity is proportional to charge (range: 1.0 to 4.0)
-          state.velocityX = 1.0 + (3.0 * state.chargeValue);
-          state.landingTimer = 0;
-          state.fallFrameIndex = 18;
-          state.fallFrameTimer = 0;
-        }
+      const state = stateRef.current;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        state.isMovingForward = false;
       }
     };
 
@@ -277,7 +298,7 @@ const GameCanvas = ({ gameState }) => {
       }
 
       const refs = {
-        platformImageRef, charJumpImageRef, charWaveImageRef, charIdleImageRef, bgImagesRef, iceCandiesImagesRef
+        platformImageRef, charJumpImageRef, charWaveImageRef, charIdleImageRef, charRunImageRef, bgImagesRef, iceCandiesImagesRef
       };
       
       renderScene(ctx, canvas, state, platformHeight, platformWidth, gameState, refs);
@@ -291,40 +312,100 @@ const GameCanvas = ({ gameState }) => {
 
 
 
-  const handleStartCharge = (e) => {
+  const handlePointerDown = (e) => {
     if (e.target.closest('button')) return;
     const state = stateRef.current;
-    if (!state.isJumping && !state.isCharging) {
-      state.isCharging = true;
-      state.chargeValue = 0;
+    
+    // For touch
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        let tx = e.changedTouches[i].clientX;
+        if (tx < window.innerWidth / 2) {
+          state.isMovingForward = true;
+        } else {
+          if (!state.isJumping) {
+            state.isJumping = true;
+            state.hasJumped = true;
+            state.hasStartedMoving = true;
+            state.hasDoubleJumped = false;
+            playJumpSound(1.0);
+            state.velocityY = -8.5;
+            state.velocityX = 0;
+            state.landingTimer = 0;
+            state.fallFrameIndex = 18;
+            state.fallFrameTimer = 0;
+          } else if (!state.hasDoubleJumped) {
+            state.hasDoubleJumped = true;
+            playJumpSound(0.5);
+            state.velocityY = -7.0;
+            state.fallFrameIndex = 18;
+            state.fallFrameTimer = 0;
+          }
+        }
+      }
+      return;
+    }
+
+    let clientX = e.clientX;
+    if (clientX === undefined) return;
+
+    if (clientX < window.innerWidth / 2) {
+      state.isMovingForward = true;
+    } else {
+      if (!state.isJumping) {
+        state.isJumping = true;
+        state.hasJumped = true;
+        state.hasStartedMoving = true;
+        state.hasDoubleJumped = false;
+        playJumpSound(1.0);
+        state.velocityY = -8.5;
+        state.velocityX = 0;
+        state.landingTimer = 0;
+        state.fallFrameIndex = 18;
+        state.fallFrameTimer = 0;
+      } else if (!state.hasDoubleJumped) {
+        state.hasDoubleJumped = true;
+        playJumpSound(0.5);
+        state.velocityY = -7.0;
+        state.fallFrameIndex = 18;
+        state.fallFrameTimer = 0;
+      }
     }
   };
 
-  const handleReleaseCharge = (e) => {
+  const handlePointerUp = (e) => {
     const state = stateRef.current;
-    if (state.isCharging) {
-      state.isJumping = true;
-      state.hasJumped = true;
-      state.isCharging = false;
-      playJumpSound(state.chargeValue);
-      // Jump velocity is proportional to charge (range: -3.5 to -9.0 for slower parabolic trajectory)
-      state.velocityY = -3.5 - (5.5 * state.chargeValue);
-      // Horizontal velocity is proportional to charge (range: 1.0 to 4.0)
-      state.velocityX = 1.0 + (3.0 * state.chargeValue);
-      state.landingTimer = 0;
-      state.fallFrameIndex = 18;
-      state.fallFrameTimer = 0;
+    
+    // For touch
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      for (let i = 0; i < e.changedTouches.length; i++) {
+        let tx = e.changedTouches[i].clientX;
+        if (tx < window.innerWidth / 2) {
+          state.isMovingForward = false;
+        }
+      }
+      return;
+    }
+
+    let clientX = e.clientX;
+    if (clientX === undefined) {
+      state.isMovingForward = false;
+      return;
+    }
+
+    if (clientX < window.innerWidth / 2) {
+      state.isMovingForward = false;
     }
   };
 
   return (
     <div 
       onContextMenu={(e) => { e.preventDefault(); return false; }}
-      onMouseDown={handleStartCharge}
-      onMouseUp={handleReleaseCharge}
-      onMouseLeave={handleReleaseCharge}
-      onTouchStart={handleStartCharge}
-      onTouchEnd={handleReleaseCharge}
+      onMouseDown={handlePointerDown}
+      onMouseUp={handlePointerUp}
+      onMouseLeave={handlePointerUp}
+      onTouchStart={handlePointerDown}
+      onTouchEnd={handlePointerUp}
       style={{ 
         width: '100%', 
         height: '100%', 

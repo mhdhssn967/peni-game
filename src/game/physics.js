@@ -1,5 +1,12 @@
 export const updatePhysics = (state, canvas, gameState, platformWidth, platformHeight, playJumpSound) => {
   state.time += 1;
+  if (state.tutorialTimer === undefined) {
+    state.tutorialTimer = 0;
+  }
+  // Allow tutorial to run for the full two-phase sequence (approx 11 seconds)
+  if (state.tutorialTimer < 1400) {
+    state.tutorialTimer++;
+  }
 
   const isPlaying = gameState === 'playing';
   const runSpeed = 4.0;
@@ -14,14 +21,24 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
   const charGroundY = platTopVisible - charHeight + (charHeight * 57 / 256);
 
   let currentScrollSpeed = 0;
+  
+  state.runVelocity = state.runVelocity || 0;
+  
+  if (state.isMovingForward) {
+    state.hasStartedMoving = true;
+    state.runVelocity += 0.15; // Acceleration
+    if (state.runVelocity > 3.5) state.runVelocity = 3.5; // Max speed
+  } else {
+    state.runVelocity *= 0.8; // Friction
+    if (state.runVelocity < 0.1) state.runVelocity = 0;
+  }
+
+  if (state.runVelocity > 0) {
+    state.scrollX += state.runVelocity;
+    currentScrollSpeed = state.runVelocity;
+  }
+
   if (state.isJumping) {
-    const heightAboveGround = charGroundY - state.charY;
-    const heightRatio = Math.max(0.1, Math.min(1.0, heightAboveGround / 150));
-    const easedScrollSpeed = state.velocityX * heightRatio;
-
-    state.scrollX += easedScrollSpeed;
-    currentScrollSpeed = easedScrollSpeed;
-
     if (state.time % 3 === 0) {
       state.jumpTrail.push({
         x: logicalWidth * 0.12 + 130 / 2,
@@ -39,32 +56,6 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
     if (dot.opacity <= 0) {
       state.jumpTrail.splice(i, 1);
     }
-  }
-
-  if (state.isCharging) {
-    // Initialize direction if not present (1 for increasing, -1 for decreasing)
-    if (!state.chargeDirection) state.chargeDirection = 1;
-    if (state.chargeHoldTimer === undefined) state.chargeHoldTimer = 0;
-    
-    if (state.chargeHoldTimer > 0) {
-      state.chargeHoldTimer--;
-    } else {
-      state.chargeValue += 0.008 * state.chargeDirection; 
-      
-      // Ping-pong the charge value between 0 and 1
-      if (state.chargeValue >= 1.0) {
-        state.chargeValue = 1.0;
-        state.chargeDirection = -1;
-        state.chargeHoldTimer = 60; // 60 frames at 120fps = 0.5 seconds pause at max power
-      } else if (state.chargeValue <= 0.0) {
-        state.chargeValue = 0.0;
-        state.chargeDirection = 1;
-      }
-    }
-  } else {
-    // Reset direction and timer when not charging
-    state.chargeDirection = 1;
-    state.chargeHoldTimer = 0;
   }
 
   if (state.floatingTexts) {
@@ -91,6 +82,11 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
         candy.movePhase += candy.moveSpeed * 0.02;
         candy.yOffset = candy.baseYOffset + Math.sin(candy.movePhase) * candy.moveRange;
       }
+
+      if (candy.isMelting && candy.hasLandedOn) {
+        candy.meltSpeed += 0.15;
+        candy.yOffset += candy.meltSpeed;
+      }
       
       if (peniWorldX > candy.x + 115 && !candy.hasScored && !candy.passed) {
         candy.passed = true;
@@ -101,11 +97,12 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
   }
 
   if (state.isJumping) {
-    let currentGravity = 0.14;
+    state.hasStartedMoving = true;
+    let currentGravity = 0.16; // Moon gravity base
     if (Math.abs(state.velocityY) < 1.5) {
-      currentGravity = 0.06;
+      currentGravity = 0.08; // Float at apex
     } else if (state.velocityY > 0) {
-      currentGravity = 0.18;
+      currentGravity = 0.22; // Fall slightly faster than rise
     }
     
     state.velocityY += currentGravity;
@@ -135,6 +132,7 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
           let isMoving = false;
           let moveSpeed = 0;
           let moveRange = 0;
+          let isMelting = false;
           
           if (i > 4) {
             // Increased difficulty: wider gaps and steeper heights
@@ -151,6 +149,13 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
               moveRange = 50 + Math.random() * 80; // pixels to move up and down
             }
           }
+          
+          if (i > 15) {
+            // After candy 15, some static candies might be melting
+            if (!isMoving && Math.random() > 0.5) {
+              isMelting = true;
+            }
+          }
 
           const randomType = types[Math.floor(Math.random() * types.length)];
           state.candies.push({ 
@@ -163,7 +168,10 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
             isMoving,
             moveSpeed,
             moveRange,
-            movePhase: Math.random() * Math.PI * 2
+            movePhase: Math.random() * Math.PI * 2,
+            isMelting,
+            hasLandedOn: false,
+            meltSpeed: 0
           });
           startCandyX += 140 + gap; 
       }
@@ -186,22 +194,26 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
 
     const isOnPlatform = isOnPlatform1 || isOnCandy;
     const targetGroundY = isOnCandy ? charGroundY + activeCandyYOffset : charGroundY;
+    const previousCharY = state.charY - state.velocityY;
 
-    if (state.charY >= targetGroundY) {
-      if (isOnPlatform && state.velocityY >= 0) {
-        state.charY = targetGroundY;
-        state.isJumping = false;
-        state.velocityY = 0;
-        state.landingTimer = 8;
-        state.fallFrameIndex = 18;
-        state.fallFrameTimer = 0;
-        if (state.currentAudio) {
-          state.currentAudio.pause();
-          state.currentAudio.currentTime = 0;
-          state.currentAudio = null;
-        }
+    if (isOnPlatform && state.velocityY >= 0 && state.charY >= targetGroundY && previousCharY <= targetGroundY + 15) {
+      state.charY = targetGroundY;
+      state.isJumping = false;
+      state.velocityY = 0;
+      state.hasDoubleJumped = false; // Reset for next jump
+      state.landingTimer = 8;
+      state.fallFrameIndex = 18;
+      state.fallFrameTimer = 0;
+      if (state.currentAudio) {
+        state.currentAudio.pause();
+        state.currentAudio.currentTime = 0;
+        state.currentAudio = null;
+      }
+      
+      if (isOnCandy && activeCandy) {
+        activeCandy.hasLandedOn = true;
         
-        if (isOnCandy && activeCandy && !activeCandy.hasScored) {
+        if (!activeCandy.hasScored) {
           activeCandy.hasScored = true;
           
           const skipped = state.skippedCandiesThisJump || 0;
@@ -220,40 +232,64 @@ export const updatePhysics = (state, canvas, gameState, platformWidth, platformH
           
           state.skippedCandiesThisJump = 0; // reset for next jump
         }
-      } else if (!isOnPlatform) {
-        if (state.charY > logicalHeight + 150) {
-          state.scrollX = 0;
-          state.charY = charGroundY;
-          state.velocityY = 0;
-          state.isJumping = false;
-          state.fallFrameIndex = 18;
-          state.fallFrameTimer = 0;
-          state.score = 0; // Reset score on death
-          state.skippedCandiesThisJump = 0;
-          state.candies = []; // Regenerate candies on respawn
-          if (state.currentAudio) {
-            state.currentAudio.pause();
-            state.currentAudio.currentTime = 0;
-            state.currentAudio = null;
-          }
-        }
+      }
+    } else if (state.charY > logicalHeight + 150) {
+      state.scrollX = 0;
+      state.charY = charGroundY;
+      state.velocityY = 0;
+      state.isJumping = false;
+      state.fallFrameIndex = 18;
+      state.fallFrameTimer = 0;
+      state.score = 0; // Reset score on death
+      state.skippedCandiesThisJump = 0;
+      state.candies = []; // Regenerate candies on respawn
+      state.runVelocity = 0; // Reset run velocity
+      state.isMovingForward = false; // Stop moving forward
+      if (state.currentAudio) {
+        state.currentAudio.pause();
+        state.currentAudio.currentTime = 0;
+        state.currentAudio = null;
       }
     }
   } else {
     // Determine target ground even when not jumping to stay snapped correctly
     const peniWorldX = state.scrollX + (logicalWidth * 0.12) + (130 / 2);
+    const isOnPlatform1 = peniWorldX >= 0 && peniWorldX <= platformWidth;
+    
     let activeCandyYOffset = 0;
     let isOnCandy = false;
-    for (let i = 0; i < state.candies.length; i++) {
-      const candy = state.candies[i];
-      if (peniWorldX >= candy.x + 25 && peniWorldX <= candy.x + 115) {
-        isOnCandy = true;
-        activeCandyYOffset = candy.yOffset;
-        break;
+    if (state.candies) {
+      for (let i = 0; i < state.candies.length; i++) {
+        const candy = state.candies[i];
+        if (peniWorldX >= candy.x + 25 && peniWorldX <= candy.x + 115) {
+          isOnCandy = true;
+          activeCandyYOffset = candy.yOffset;
+          break;
+        }
       }
     }
-    const targetGroundY = isOnCandy ? charGroundY + activeCandyYOffset : charGroundY;
-    state.charY = targetGroundY;
+    
+    const isOnPlatform = isOnPlatform1 || isOnCandy;
+
+    if (!isOnPlatform) {
+      // Walked off a ledge without jumping
+      state.isJumping = true;
+      state.velocityY = 0;
+    } else {
+      const targetGroundY = isOnCandy ? charGroundY + activeCandyYOffset : charGroundY;
+      if (targetGroundY < state.charY - 20) {
+        // Hit a higher wall!
+        state.isJumping = true;
+        state.velocityY = 0;
+      } else if (targetGroundY > state.charY + 20) {
+        // Walked off a ledge onto a much lower platform!
+        state.isJumping = true;
+        state.velocityY = 0;
+      } else {
+        // Stick to the ground / moving platform
+        state.charY = targetGroundY;
+      }
+    }
 
     if (state.landingTimer > 0) {
       state.landingTimer--;

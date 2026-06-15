@@ -1,5 +1,5 @@
 export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, gameState, refs) => {
-  const { platformImageRef, charJumpImageRef, charWaveImageRef, charIdleImageRef, bgImagesRef, iceCandiesImagesRef } = refs;
+  const { platformImageRef, charJumpImageRef, charWaveImageRef, charIdleImageRef, charRunImageRef, bgImagesRef, iceCandiesImagesRef } = refs;
   
   const dpr = canvas.dpr || 1;
   const W = canvas.logicalWidth || canvas.width;
@@ -153,7 +153,11 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
     if (candyScreenX + 160 > 0 && candyScreenX < W) {
       const cImg = iceCandiesImagesRef.current[candy.type];
       if (cImg) {
-        ctx.drawImage(cImg, candyScreenX, baseCandyDrawY + candy.yOffset, 140, 315);
+        let dx = candyScreenX;
+        if (candy.isMelting && !candy.hasLandedOn) {
+          dx += Math.sin(state.time * 0.8) * 3; // Shiver effect
+        }
+        ctx.drawImage(cImg, dx, baseCandyDrawY + candy.yOffset, 140, 315);
       }
     }
   });
@@ -171,7 +175,10 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
 
   // 6. DRAW CHARACTER AND SHADOW
   const isJumpingOrLanding = state.isJumping || state.landingTimer > 0;
-  const charImg = isJumpingOrLanding ? charJumpImageRef.current : (state.hasJumped ? charIdleImageRef.current : charWaveImageRef.current);
+  let charImg = isJumpingOrLanding ? charJumpImageRef.current : (state.hasStartedMoving ? charIdleImageRef.current : charWaveImageRef.current);
+  if (!isJumpingOrLanding && state.isMovingForward) {
+    charImg = charRunImageRef.current;
+  }
 
   if (charImg && charImg.complete) {
     const charX = W * 0.12;
@@ -210,89 +217,7 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
     );
     ctx.restore();
 
-    // 6.5 DRAW JUMP CHARGING METER
-    if (state.isCharging) {
-      const meterWidth = 16;
-      const meterHeight = 120;
-      const meterX = W * 0.05;
-      const meterY = (H - meterHeight) / 2;
 
-      ctx.save();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.lineWidth = 2;
-      
-      ctx.beginPath();
-      ctx.roundRect(meterX, meterY, meterWidth, meterHeight, 4);
-      ctx.fill();
-      ctx.stroke();
-
-      const fillHeight = meterHeight * state.chargeValue;
-      if (fillHeight > 0) {
-        const grad = ctx.createLinearGradient(meterX, meterY + meterHeight, meterX, meterY);
-        grad.addColorStop(0, '#00ffcc');
-        grad.addColorStop(0.5, '#ffcc00');
-        grad.addColorStop(1, '#ff3366');
-        
-        ctx.fillStyle = grad;
-        
-        ctx.beginPath();
-        ctx.roundRect(
-          meterX + 2,
-          meterY + meterHeight - fillHeight + 2,
-          meterWidth - 4,
-          fillHeight - 4,
-          2
-        );
-        ctx.fill();
-      }
-      ctx.restore();
-
-      // JUMP TRAJECTORY PREDICTION
-      ctx.save();
-      const startX = charX + charWidth / 2;
-      const startY = state.charY + charHeight / 2 + 20;
-
-      let simY = state.charY;
-      let simVy = -3.5 - (5.5 * state.chargeValue);
-      let simVx = 1.0 + (3.0 * state.chargeValue);
-
-      let simScreenX = startX;
-      let simScreenY = startY;
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-      
-      // Simulate physics forward for a set number of frames
-      for (let i = 0; i < 70; i++) {
-        let currentGravity = 0.14;
-        if (Math.abs(simVy) < 1.5) {
-          currentGravity = 0.06;
-        } else if (simVy > 0) {
-          currentGravity = 0.18;
-        }
-        
-        simVy += currentGravity;
-        simY += simVy;
-
-        const heightAboveGround = Math.max(0, charGroundY - simY);
-        const heightRatio = Math.max(0.1, Math.min(1.0, heightAboveGround / 150));
-        const easedScrollSpeed = simVx * heightRatio;
-
-        simScreenX += easedScrollSpeed;
-        simScreenY = simY + charHeight / 2 + 20;
-
-        // Draw a dot every 6th simulated frame
-        if (i % 6 === 0) {
-          ctx.beginPath();
-          ctx.arc(simScreenX, simScreenY, 3, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // Stop drawing dots if it predicts falling too far below the main ground level
-        if (simY > charGroundY + 50) break;
-      }
-      ctx.restore();
-    }
   }
 
   // 7. GLOWING POLLEN DUSTS
@@ -404,6 +329,127 @@ export const renderScene = (ctx, canvas, state, platformHeight, platformWidth, g
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
   ctx.textBaseline = 'alphabetic';
+
+  // 10. TUTORIAL OVERLAY (first show Move Forward for 5s, then show Jump for 5s, below platform line)
+  const PHASE1_END = 600; // 5 seconds at 120fps
+  const TRANSITION = 60;  // 0.5s transition
+  const PHASE2_END = PHASE1_END + TRANSITION + 600; // 1260
+  const FADE_OUT = 60; // 1320 total
+
+  const currentTimer = state.tutorialTimer || 0;
+
+  if (currentTimer < PHASE2_END + FADE_OUT) {
+    const t = currentTimer;
+    const halfW = W / 2;
+    // Platform starts at: H - platformHeight. Middle of platform is: H - platformHeight * 0.5
+    const centerY = H - platformHeight * 0.5;
+
+    // --- PHASE 1: MOVE FORWARD (0 to 600 + transition fade) ---
+    if (t < PHASE1_END + TRANSITION) {
+      let alpha = 1.0;
+      if (t < 30) alpha = t / 30; // fade in
+      else if (t > PHASE1_END) alpha = Math.max(0, 1 - (t - PHASE1_END) / TRANSITION); // fade out
+
+      if (alpha > 0) {
+        ctx.save();
+        const pulse = 0.9 + 0.1 * Math.sin(t * 0.1);
+        
+        // Left side highlight
+        const leftGrad = ctx.createRadialGradient(halfW * 0.5, centerY, 10, halfW * 0.5, centerY, halfW * 0.4);
+        leftGrad.addColorStop(0, `rgba(100, 220, 255, ${0.22 * pulse * alpha})`);
+        leftGrad.addColorStop(1, `rgba(100, 220, 255, 0)`);
+        ctx.fillStyle = leftGrad;
+        ctx.fillRect(0, H - platformHeight, halfW, platformHeight);
+
+        // Draw Vector Icon: Circle with Right Arrow (Move Forward)
+        ctx.translate(halfW * 0.5, centerY - 25); // moved slightly higher to fit two lines
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.15})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 22 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Arrow pointing right
+        ctx.beginPath();
+        ctx.moveTo(-7 * pulse, 0);
+        ctx.lineTo(7 * pulse, 0);
+        ctx.moveTo(2 * pulse, -5 * pulse);
+        ctx.lineTo(7 * pulse, 0);
+        ctx.lineTo(2 * pulse, 5 * pulse);
+        ctx.stroke();
+        ctx.restore();
+
+        // Label (Split into two lines for screen visibility)
+        ctx.save();
+        ctx.font = `bold 14px "Inter", sans-serif`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = `rgba(0,0,0,0.8)`;
+        ctx.shadowBlur = 4;
+        ctx.fillText('HOLD HERE', halfW * 0.5, centerY + 18);
+        ctx.font = `bold 12px "Inter", sans-serif`;
+        ctx.fillStyle = `rgba(200, 240, 255, ${alpha})`;
+        ctx.fillText('TO MOVE FORWARD', halfW * 0.5, centerY + 36);
+        ctx.restore();
+      }
+    }
+
+    // --- PHASE 2: JUMP & DOUBLE JUMP (660 to 1260 + fade out) ---
+    if (t >= PHASE1_END) {
+      let alpha = 0;
+      const t2 = t - PHASE1_END;
+      if (t2 < TRANSITION) alpha = t2 / TRANSITION; // fade in
+      else if (t > PHASE2_END) alpha = Math.max(0, 1 - (t - PHASE2_END) / FADE_OUT); // fade out
+      else alpha = 1.0;
+
+      if (alpha > 0) {
+        ctx.save();
+        const pulse = 0.9 + 0.1 * Math.sin(t * 0.1);
+        
+        // Right side highlight
+        const rightGrad = ctx.createRadialGradient(halfW + halfW * 0.5, centerY, 10, halfW + halfW * 0.5, centerY, halfW * 0.4);
+        rightGrad.addColorStop(0, `rgba(255, 180, 80, ${0.22 * pulse * alpha})`);
+        rightGrad.addColorStop(1, `rgba(255, 180, 80, 0)`);
+        ctx.fillStyle = rightGrad;
+        ctx.fillRect(halfW, H - platformHeight, halfW, platformHeight);
+
+        // Draw Vector Icon: Circle with Up Arrow (Jump)
+        ctx.translate(halfW + halfW * 0.5, centerY - 25);
+        ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.15})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, 22 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        // Arrow pointing up
+        ctx.beginPath();
+        ctx.moveTo(0, 7 * pulse);
+        ctx.lineTo(0, -7 * pulse);
+        ctx.moveTo(-5 * pulse, -2 * pulse);
+        ctx.lineTo(0, -7 * pulse);
+        ctx.lineTo(5 * pulse, -2 * pulse);
+        ctx.stroke();
+        ctx.restore();
+
+        // Labels
+        ctx.save();
+        ctx.font = `bold 14px "Inter", sans-serif`;
+        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+        ctx.textAlign = 'center';
+        ctx.shadowColor = `rgba(0,0,0,0.8)`;
+        ctx.shadowBlur = 4;
+        ctx.fillText('TAP HERE TO JUMP', halfW + halfW * 0.5, centerY + 18);
+        ctx.font = `bold 12px "Inter", sans-serif`;
+        ctx.fillStyle = `rgba(255, 220, 180, ${alpha})`;
+        ctx.fillText('TAP AGAIN TO DOUBLE JUMP', halfW + halfW * 0.5, centerY + 38);
+        ctx.restore();
+      }
+    }
+  }
 
   ctx.restore(); // Restore DPI scale
 };
